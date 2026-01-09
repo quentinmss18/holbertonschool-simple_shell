@@ -8,7 +8,8 @@ This shell can:
 * Handle the `PATH` to find executable programs.
 * Implement built-ins: `exit` and `env`.
 * Handle the end-of-file (Ctrl+D).
-<img width="517" height="772" alt="image" src="https://github.com/user-attachments/assets/1d29a86e-59a9-4a94-8070-bb306a646f42" />
+<![IMG_7549](https://github.com/user-attachments/assets/2739e624-512b-4076-8dfe-69f80e5718e1)
+
 
 ## Compilation
 The shell is compiled this way:
