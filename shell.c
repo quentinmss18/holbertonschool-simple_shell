@@ -1,69 +1,51 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <string.h>
-#include <sys/types.h>
-#include <sys/wait.h>
+#include "shell.h"
 
 /**
- * main - Simple shell logic with argument handling
- * @ac: Arg count (unused)
- * @av: Arg vector (used for shell name in errors)
- * @env: Environment variables
- *
- * Return: 0
+ * main - Entry point for the simple shell 0.3
+ * @ac: Argument count (unused)
+ * @av: Argument vector
+ * Return: 0 on success
  */
-int main(int ac, char **av, char **env)
+int main(int ac, char **av)
 {
-	char *line = NULL;
+	char *line = NULL, *path = NULL;
 	size_t len = 0;
 	ssize_t nread;
-	pid_t child_pid;
-	char *token;
-	char *argv[100]; /* Tableau pour stocker la commande et ses arguments */
-	int i, status;
-
+	char *args[2];
 	(void)ac;
+
 	while (1)
 	{
 		if (isatty(STDIN_FILENO))
-			write(STDOUT_FILENO, "#cisfun$ ", 9);
+			write(STDOUT_FILENO, "($) ", 4);
 
 		nread = getline(&line, &len, stdin);
-		if (nread == -1)
-		{
-			if (isatty(STDIN_FILENO))
-				write(STDOUT_FILENO, "\n", 1);
-			free(line);
-			exit(0);
-		}
+		if (nread == -1) /* Handle EOF (Ctrl+D) */
+			break;
 
-		/* Découpage de la ligne en arguments */
-		i = 0;
-		token = strtok(line, " \t\n\r");
-		while (token != NULL && i < 99)
-		{
-			argv[i] = token;
-			token = strtok(NULL, " \t\n\r");
-			i++;
-		}
-		argv[i] = NULL;
+		if (line[nread - 1] == '\n')
+			line[nread - 1] = '\0';
 
-		if (argv[0] == NULL)
+		if (strlen(line) == 0)
 			continue;
 
-		child_pid = fork();
-		if (child_pid == 0)
+		args[0] = line;
+		args[1] = NULL;
+		path = _find_path(args[0]);
+
+		if (path)
 		{
-			if (execve(argv[0], argv, env) == -1)
+			if (fork() == 0)
 			{
-				fprintf(stderr, "%s: 1: %s: not found\n", av[0], argv[0]);
-				free(line);
-				exit(127);
+				if (execve(path, args, environ) == -1)
+					perror(av[0]);
+				exit(EXIT_FAILURE);
 			}
+			wait(NULL);
+			free(path);
 		}
 		else
-			wait(&status);
+			fprintf(stderr, "%s: 1: %s: not found\n", av[0], line);
 	}
 	free(line);
 	return (0);
