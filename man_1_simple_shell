@@ -1,0 +1,62 @@
+HSH(1)                         Simple Shell                        HSH(1)
+
+NAME
+       hsh - minimal UNIX command interpreter
+
+SYNOPSIS
+       ./hsh
+       echo "command" | ./hsh
+
+DESCRIPTION
+       hsh is a basic UNIX shell implemented in C as part of the
+       Holberton School program.
+
+       It prints a prompt, reads user input, interprets commands,
+       resolves executable paths, and runs programs using
+       fork() and execve().
+
+       The shell supports both interactive and non-interactive usage.
+
+FEATURES
+       - Displays a prompt in interactive mode
+       - Reads user input with getline
+       - Parses commands separated by spaces
+       - Resolves commands via the PATH environment variable
+       - Executes programs using fork and execve
+       - Handles SIGINT (Ctrl+C)
+       - Supports built-in commands: exit and env
+
+BUILT-IN COMMANDS
+       exit [status]
+              Terminates the shell.
+              Without arguments, it exits using the last command status.
+              With a status argument, exits with status modulo 256.
+              If the argument is invalid, exits with status 2.
+
+       env
+              Displays the current environment variables.
+
+PATH RESOLUTION
+       - Commands starting with '/' or './' are treated as direct paths
+       - Otherwise, the shell searches in directories listed in PATH
+       - If not found, an error message is displayed
+
+ERROR HANDLING
+       - Command not found: returns exit status 127
+       - Permission denied or invalid execution: returns status 126
+       - Invalid exit argument: returns status 2
+
+EXIT STATUS
+       The shell returns the status of the last executed command.
+
+EXAMPLES
+       Interactive mode:
+              $ ./hsh
+              $ ls
+              $ exit
+
+       Non-interactive mode:
+              echo "/bin/ls" | ./hsh
+
+AUTHORS
+       Developed by Quentin and Rhiles .
