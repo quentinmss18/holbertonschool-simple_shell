@@ -11,7 +11,20 @@
 
 extern char **environ;
 
-char *_find_path(char *command);
-char *_getenv(const char *name);
+/* main.c */
+int main(void);
 
-#endif
+/* shell.c */
+char *read_line(int *eof);
+char **split_line(char *line);
+int execute(char **args, char *prog_name);
+
+/* path.c */
+char *find_in_path(char *cmd);
+char *build_path(char *dir, char *cmd);
+
+/* utils.c */
+void free_args(char **args);
+int is_empty(char *line);
+
+#endif /* SHELL_H */
