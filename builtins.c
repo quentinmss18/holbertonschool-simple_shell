@@ -13,6 +13,22 @@ static void builtin_exit(char **args)
 }
 
 /**
+ * builtin_env - Prints each environment variable on its own line
+ * @args: Argument array (unused)
+ */
+static void builtin_env(char **args)
+{
+	int i;
+
+	(void)args;
+	for (i = 0; environ[i]; i++)
+	{
+		write(STDOUT_FILENO, environ[i], strlen(environ[i]));
+		write(STDOUT_FILENO, "\n", 1);
+	}
+}
+
+/**
  * handle_builtin - Checks if a command is a built-in and runs it
  * @args: Null-terminated array of arguments; args[0] is the command name
  *
@@ -24,6 +40,11 @@ int handle_builtin(char **args)
 	{
 		builtin_exit(args);
 		return (1); /* never reached, but satisfies compiler */
+	}
+	if (strcmp(args[0], "env") == 0)
+	{
+		builtin_env(args);
+		return (1);
 	}
 	return (0);
 }
