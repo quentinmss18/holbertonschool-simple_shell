@@ -1,151 +1,85 @@
 #include "shell.h"
 
 /**
- * read_line - Reads a line from standard input
- * @eof: Pointer to EOF flag, set to 1 on EOF
- *
- * Return: Pointer to the line read, or NULL on empty/error
+ * ctrlC - function called by signal
+ * @signal: unused
+ * Description: ctrlC cancel the current line and produce new prompt
+ * Return: void
  */
-char *read_line(int *eof)
+void ctrlC(int signal)
 {
-	char *line = NULL;
-	size_t bufsize = 0;
-	ssize_t chars_read;
-
-	*eof = 0;
-	chars_read = getline(&line, &bufsize, stdin);
-	if (chars_read == -1)
-	{
-		*eof = 1;
-		return (line);
-	}
-
-	/* Remove trailing newline */
-	if (line[chars_read - 1] == '\n')
-		line[chars_read - 1] = '\0';
-
-	return (line);
+	(void)signal;
+	write(STDOUT_FILENO, "\n$ ", 3);
 }
 
 /**
- * split_line - Tokenizes a line into an array of arguments
- * @line: The input line to split
- *
- * Return: Null-terminated array of strings, or NULL on failure
+ * handle_cmd - handle one parsed command (builtins + path + exec/errors)
+ * @cmd: command array
+ * @av: argv from main
+ * @line: current line number
+ * Return: exit status
  */
-char **split_line(char *line)
+static int handle_cmd(char **cmd, char **av, unsigned int line)
 {
-	char **args = NULL;
-	char *token = NULL;
-	int count = 0, i = 0;
-	char *line_copy = NULL;
-	char *tmp = NULL;
+	int path_value;
 
-	/* Count tokens first */
-	line_copy = strdup(line);
-	if (!line_copy)
-		return (NULL);
+	if (env_builtin(cmd) || exit_builtin(cmd, av[0], line))
+		return (0);
 
-	token = strtok(line_copy, " \t\r\n");
-	while (token)
-	{
-		count++;
-		token = strtok(NULL, " \t\r\n");
-	}
-	free(line_copy);
+	path_value = get_path(cmd);
+	if (path_value == 1)
+		return (execve_cmd(cmd, av[0], line));
+	if (path_value == -2)
+		return (print_is_dir(av[0], line, cmd[0]), 126);
+	if (path_value == -1)
+		return (print_perm_denied(av[0], line, cmd[0]), 126);
 
-	if (count == 0)
-		return (NULL);
-
-	args = malloc(sizeof(char *) * (count + 1));
-	if (!args)
-		return (NULL);
-
-	tmp = strdup(line);
-	if (!tmp)
-	{
-		free(args);
-		return (NULL);
-	}
-
-	token = strtok(tmp, " \t\r\n");
-	while (token)
-	{
-		args[i] = strdup(token);
-		if (!args[i])
-		{
-			for (; i >= 0; i--)
-				free(args[i]);
-			free(args);
-			free(tmp);
-			return (NULL);
-		}
-		i++;
-		token = strtok(NULL, " \t\r\n");
-	}
-	args[i] = NULL;
-	free(tmp);
-
-	return (args);
+	print_not_found(av[0], line, cmd[0]);
+	return (127);
 }
 
 /**
- * execute - Forks and executes a command
- * @args: Array of arguments (args[0] is the command)
- * @prog_name: Name of the shell program (for error messages)
- *
- * Return: Exit status of the child process
+ * main - Entry
+ * @ac: ac
+ * @av: av
+ * Description: main function that run getline to read from the terminal
+ * split the command from input
+ * compare the input to built-ins commands
+ * send the command to getpath to form a valid path
+ * Return: 0
  */
-int execute(char **args, char *prog_name)
+int main(int ac, char **av)
 {
-	pid_t pid;
-	int status;
-	char *cmd = NULL;
-	static int cmd_num = 1;
+	char *buffer = NULL;
+	char **cmd = NULL;
+	size_t b_size = 0;
+	int user = isatty(STDIN_FILENO);
+	unsigned int line = 0;
+	int status = 0;
 
-	/* Check if command contains a '/' (absolute or relative path) */
-	if (strchr(args[0], '/'))
-		cmd = args[0];
-	else
-		cmd = find_in_path(args[0]);
-
-	if (!cmd)
+	(void)ac;
+	signal(SIGINT, ctrlC);
+	if (user)
+		_puts("$ ");
+	while (getline(&buffer, &b_size, stdin) != -1 && ++line)
 	{
-		fprintf(stderr, "%s: %d: %s: not found\n",
-			prog_name, cmd_num++, args[0]);
-		return (127);
-	}
-
-	pid = fork();
-	if (pid == -1)
-	{
-		perror("fork");
-		if (cmd != args[0])
-			free(cmd);
-		return (-1);
-	}
-
-	if (pid == 0)
-	{
-		/* Child process */
-		if (execve(cmd, args, environ) == -1)
+		cmd = strtow(buffer);
+		if (cmd && cmd[0] && _strcmp(cmd[0], "exit") == 0 && !cmd[1])
 		{
-			fprintf(stderr, "%s: %d: %s: not found\n",
-				prog_name, cmd_num, args[0]);
-			if (cmd != args[0])
-				free(cmd);
-			exit(127);
+			free_cmd(cmd);
+			free(buffer);
+			exit(status);
 		}
+		if (cmd)
+		{
+			status = handle_cmd(cmd, av, line);
+			free_cmd(cmd);
+		}
+		if (user)
+			_puts("$ ");
 	}
-	else
-	{
-		/* Parent process */
-		waitpid(pid, &status, 0);
-		cmd_num++;
-	}
-
-	if (cmd != args[0])
-		free(cmd);
-
+	if (user)
+		putchar('\n');
+	free(buffer);
 	return (status);
 }
