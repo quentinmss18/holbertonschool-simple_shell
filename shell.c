@@ -1,52 +1,151 @@
 #include "shell.h"
 
 /**
- * main - Entry point for the simple shell 0.3
- * @ac: Argument count (unused)
- * @av: Argument vector
- * Return: 0 on success
+ * read_line - Reads a line from standard input
+ * @eof: Pointer to EOF flag, set to 1 on EOF
+ *
+ * Return: Pointer to the line read, or NULL on empty/error
  */
-int main(int ac, char **av)
+char *read_line(int *eof)
 {
-	char *line = NULL, *path = NULL;
-	size_t len = 0;
-	ssize_t nread;
-	char *args[2];
-	(void)ac;
+	char *line = NULL;
+	size_t bufsize = 0;
+	ssize_t chars_read;
 
-	while (1)
+	*eof = 0;
+	chars_read = getline(&line, &bufsize, stdin);
+	if (chars_read == -1)
 	{
-		if (isatty(STDIN_FILENO))
-			write(STDOUT_FILENO, "($) ", 4);
-
-		nread = getline(&line, &len, stdin);
-		if (nread == -1) /* Handle EOF (Ctrl+D) */
-			break;
-
-		if (line[nread - 1] == '\n')
-			line[nread - 1] = '\0';
-
-		if (strlen(line) == 0)
-			continue;
-
-		args[0] = line;
-		args[1] = NULL;
-		path = _find_path(args[0]);
-
-		if (path)
-		{
-			if (fork() == 0)
-			{
-				if (execve(path, args, environ) == -1)
-					perror(av[0]);
-				exit(EXIT_FAILURE);
-			}
-			wait(NULL);
-			free(path);
-		}
-		else
-			fprintf(stderr, "%s: 1: %s: not found\n", av[0], line);
+		*eof = 1;
+		return (line);
 	}
-	free(line);
-	return (0);
+
+	/* Remove trailing newline */
+	if (line[chars_read - 1] == '\n')
+		line[chars_read - 1] = '\0';
+
+	return (line);
+}
+
+/**
+ * split_line - Tokenizes a line into an array of arguments
+ * @line: The input line to split
+ *
+ * Return: Null-terminated array of strings, or NULL on failure
+ */
+char **split_line(char *line)
+{
+	char **args = NULL;
+	char *token = NULL;
+	int count = 0, i = 0;
+	char *line_copy = NULL;
+	char *tmp = NULL;
+
+	/* Count tokens first */
+	line_copy = strdup(line);
+	if (!line_copy)
+		return (NULL);
+
+	token = strtok(line_copy, " \t\r\n");
+	while (token)
+	{
+		count++;
+		token = strtok(NULL, " \t\r\n");
+	}
+	free(line_copy);
+
+	if (count == 0)
+		return (NULL);
+
+	args = malloc(sizeof(char *) * (count + 1));
+	if (!args)
+		return (NULL);
+
+	tmp = strdup(line);
+	if (!tmp)
+	{
+		free(args);
+		return (NULL);
+	}
+
+	token = strtok(tmp, " \t\r\n");
+	while (token)
+	{
+		args[i] = strdup(token);
+		if (!args[i])
+		{
+			for (; i >= 0; i--)
+				free(args[i]);
+			free(args);
+			free(tmp);
+			return (NULL);
+		}
+		i++;
+		token = strtok(NULL, " \t\r\n");
+	}
+	args[i] = NULL;
+	free(tmp);
+
+	return (args);
+}
+
+/**
+ * execute - Forks and executes a command
+ * @args: Array of arguments (args[0] is the command)
+ * @prog_name: Name of the shell program (for error messages)
+ *
+ * Return: Exit status of the child process
+ */
+int execute(char **args, char *prog_name)
+{
+	pid_t pid;
+	int status;
+	char *cmd = NULL;
+	static int cmd_num = 1;
+
+	/* Check if command contains a '/' (absolute or relative path) */
+	if (strchr(args[0], '/'))
+		cmd = args[0];
+	else
+		cmd = find_in_path(args[0]);
+
+	if (!cmd)
+	{
+		fprintf(stderr, "%s: %d: %s: not found\n",
+			prog_name, cmd_num++, args[0]);
+		return (127);
+	}
+
+	pid = fork();
+	if (pid == -1)
+	{
+		perror("fork");
+		if (cmd != args[0])
+			free(cmd);
+		return (-1);
+	}
+
+	if (pid == 0)
+	{
+		/* Child process */
+		if (execve(cmd, args, environ) == -1)
+		{
+			fprintf(stderr, "%s: %d: %s: not found\n",
+				prog_name, cmd_num, args[0]);
+			if (cmd != args[0])
+				free(cmd);
+			exit(127);
+		}
+	}
+	else
+	{
+		/* Parent process */
+		waitpid(pid, &status, 0);
+		cmd_num++;
+	}
+
+	if (cmd != args[0])
+		free(cmd);
+
+	return (status);
 }
