@@ -2,15 +2,19 @@
 
 /**
  * main - Entry point for the simple shell
+ * @argc: Argument count (unused)
+ * @argv: Argument vector; argv[0] is used as the program name in errors
  *
  * Return: Always 0
  */
-int main(void)
+int main(int argc, char **argv)
 {
 	char *line = NULL;
 	char **args = NULL;
 	int eof = 0;
-	char *prog_name = "hsh";
+	char *prog_name = argv[0];
+
+	(void)argc;
 
 	while (1)
 	{
@@ -41,6 +45,11 @@ int main(void)
 			continue;
 		}
 
+		if (handle_builtin(args))
+		{
+			free_args(args);
+			continue;
+		}
 		execute(args, prog_name);
 		free_args(args);
 	}
