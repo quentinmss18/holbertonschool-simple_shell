@@ -11,9 +11,6 @@
 
 extern char **environ;
 
-/* main.c */
-int main(void);
-
 /* shell.c */
 char *read_line(int *eof);
 char **split_line(char *line);
@@ -22,6 +19,9 @@ int execute(char **args, char *prog_name);
 /* path.c */
 char *find_in_path(char *cmd);
 char *build_path(char *dir, char *cmd);
+
+/* builtins.c */
+int handle_builtin(char **args);
 
 /* utils.c */
 void free_args(char **args);
