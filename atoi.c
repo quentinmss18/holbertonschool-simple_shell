@@ -3,7 +3,7 @@
 /**
  * _atoi - convert a string to int value
  * @s: string
- * Description: run through the string skipping every
+ * Descriptions: run through the string skipping every
  * characters untill digits are found, if sign are found
  * determine the right sign by switching even with value 1
  * if no digits are found return 0
