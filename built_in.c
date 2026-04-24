@@ -5,7 +5,7 @@
  * @cmd: cmd input
  * Description: check if there is only 1 argument
  * if this argument is "env" print the env from
- * the environ extern char in header
+ * the environ extern char in headers
  * Return: 1 if success else 0
  */
 int env_builtin(char **cmd)
